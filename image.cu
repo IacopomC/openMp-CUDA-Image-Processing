@@ -61,6 +61,7 @@ void startCUDA(cv::cuda::GpuMat& src, cv::cuda::GpuMat& dst, int dimX, int dimY)
 
 void gaussianCUDA(cv::cuda::GpuMat& src, cv::cuda::GpuMat& dst, int dimX, int dimY)
 {
+
     const dim3 block(dimX, dimY);
     const dim3 grid(divUp(dst.cols, block.x), divUp(dst.rows, block.y));
 
@@ -68,23 +69,35 @@ void gaussianCUDA(cv::cuda::GpuMat& src, cv::cuda::GpuMat& dst, int dimX, int di
 
 }
 
-void gaussianConvOpenmp(cv::Mat_<uchar>& src, cv::Mat_<uchar>& dst, int kernelSize, int sigma)
+void gaussianConvOpenmp(cv::Mat_<cv::Vec3b>& src, cv::Mat_<cv::Vec3b>& dst, int kernelSize, int sigma)
 {
+
     int k = (kernelSize - 1) / 2;
+
+    dst.create(src.rows - 2*k, src.cols - 2*k);
+    dst = cv::Vec3b(0, 0, 0);
 
     for (int i = k; i < src.rows - k; i++)
     {
         for (int j = k; j < src.cols - k; j++)
         {
-            int tmp = 0;
+            float tmp[3] = { 0.0, 0.0, 0.0, };
             for (int u = i - k; u <= i + k; u++)
             {
-                for (int v = j - k; v < j + k; v++)
+                for (int v = j - k; v <= j + k; v++)
                 {
-                    tmp += src(u, v);
+                    for (int c = 0; c < 3; c++)
+                    {
+                        tmp[c] += (float) src(u, v)[c] / (kernelSize * kernelSize);
+                    }
                 }
             }
-            dst(i, j) = tmp / (kernelSize * kernelSize);
+
+            for (int c = 0; c < 3; c++)
+            {
+                dst(i-k, j-k)[c] = (unsigned char) tmp[c];
+
+            }
         }
     }
 }
