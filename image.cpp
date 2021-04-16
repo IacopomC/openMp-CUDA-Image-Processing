@@ -17,7 +17,7 @@ int main(int argc, char** argv)
 
     int kernelSize = 11;
 
-    int sigma = 15;
+    int sigma = 30;
 
     cv::namedWindow("Original Image", cv::WINDOW_OPENGL | cv::WINDOW_AUTOSIZE);
     cv::namedWindow("Processed Image", cv::WINDOW_OPENGL | cv::WINDOW_AUTOSIZE);
@@ -26,7 +26,7 @@ int main(int argc, char** argv)
     cv::cuda::GpuMat d_img, d_result;
     cv::Mat_<cv::Vec3b> h_result;
 
-    int border = (int) (kernelSize - 1) / 2;
+    int border = (int)(kernelSize - 1) / 2;
 
     cv::copyMakeBorder(h_img, h_img, border, border, border, border, cv::BORDER_REPLICATE);
 
