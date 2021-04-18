@@ -13,13 +13,19 @@ void gaussianConvOpenmp(cv::Mat_<cv::Vec3b>& src, cv::Mat_<cv::Vec3b>& dst, int 
 
 void laplacianConvOpenmp(cv::Mat_<cv::Vec3b>& src, cv::Mat_<cv::Vec3b>& dst);
 
+void colorTransfOpenmp(cv::Mat_<cv::Vec3b>& src, cv::Mat_<cv::Vec3b>& dst, float angle);
+
 int main(int argc, char** argv)
 {
     bool cuda = false;
+    bool kernel = false;
 
+    // gaussian parameters
     int kernelSize = 9;
-
     int sigma = 30;
+
+    // color transform parameters
+    float angle = 40.0;
 
     cv::namedWindow("Original Image", cv::WINDOW_OPENGL | cv::WINDOW_AUTOSIZE);
     cv::namedWindow("Processed Image", cv::WINDOW_OPENGL | cv::WINDOW_AUTOSIZE);
@@ -30,7 +36,9 @@ int main(int argc, char** argv)
 
     int border = (int)(kernelSize - 1) / 2;
 
-    cv::copyMakeBorder(h_img, h_img, border, border, border, border, cv::BORDER_REPLICATE);
+    if (kernel) {
+        cv::copyMakeBorder(h_img, h_img, border, border, border, border, cv::BORDER_REPLICATE);
+    }
 
     d_img.upload(h_img);
     d_result.upload(h_img);
@@ -82,8 +90,9 @@ int main(int argc, char** argv)
         cout << "Time per iteration" << diff.count() / iter << endl;
         cout << "Iterations per second" << iter / diff.count() << endl;*/
 
-        //gaussianConvOpenmp(h_img, h_result, kernelSize, sigma);
-        laplacianConvOpenmp(h_img, h_result);
+        // gaussianConvOpenmp(h_img, h_result, kernelSize, sigma);
+        // laplacianConvOpenmp(h_img, h_result);
+        colorTransfOpenmp(h_img, h_result, angle);
 
 
         cv::imshow("Processed Image", h_result);
