@@ -11,7 +11,7 @@ void gaussianCUDA(cv::cuda::GpuMat& src, cv::cuda::GpuMat& dst, int dimX, int di
 
 void gaussianConvOpenmp(cv::Mat_<cv::Vec3b>& src, cv::Mat_<cv::Vec3b>& dst, int kernelSize, int sigma);
 
-void laplacianConvOpenmp(cv::Mat_<cv::Vec3b>& src, cv::Mat_<cv::Vec3b>& dst, int kernelSize);
+void laplacianConvOpenmp(cv::Mat_<cv::Vec3b>& src, cv::Mat_<cv::Vec3b>& dst);
 
 int main(int argc, char** argv)
 {
@@ -82,13 +82,13 @@ int main(int argc, char** argv)
         cout << "Time per iteration" << diff.count() / iter << endl;
         cout << "Iterations per second" << iter / diff.count() << endl;*/
 
-        laplacianConvOpenmp(h_img, h_result, kernelSize);
+        //gaussianConvOpenmp(h_img, h_result, kernelSize, sigma);
+        laplacianConvOpenmp(h_img, h_result);
+
 
         cv::imshow("Processed Image", h_result);
     }
 
     cv::waitKey();
-    return 0;
-
     return 0;
 }
