@@ -78,72 +78,72 @@ void laplacianConvOpenmp(cv::Mat_<cv::Vec3b>& src, cv::Mat_<cv::Vec3b>& dst)
 }
 
 //----------------------CIE Lch----------------------
-cv::Vec3b HsvToRgb(cv::Vec3b hsv)
+cv::Vec3b HsvToRgb(cv::Vec3f hsv)
 {
     cv::Vec3f rgb;
-    int region;
-    float h, s, v, p, q, t, ff;
-    long i;
-
-    if (hsv[1] == 0)
-    {
-        rgb[2] = hsv[2];
-        rgb[1] = hsv[2];
-        rgb[0]  = hsv[2];
-        return rgb;
-    }
+    float h, s, v, x, c, m, h_prime;
 
     h = hsv[0];
     s = hsv[1];
     v = hsv[2];
 
-    region = h / 60;
-    i = (long)region;
+    c = s * v;
 
-    ff = region - i;
+    h_prime = h / 60;
 
-    p = v * (1.0 - s);
-    q = v * (1.0 - (s * ff));
-    t = v * (1.0 - (s * (1.0 - ff)));
+    x = c * (1.0 - abs(fmod(h_prime, 2) - 1.0));
 
-    switch (region)
+    if (h_prime <= 1 && h_prime >= 0)
     {
-    case 0:
-        rgb[2] = v;
-        rgb[1] = t;
-        rgb[0]  = p;
-        break;
-    case 1:
-        rgb[2] = q;
-        rgb[1] = v;
-        rgb[0]  = p;
-        break;
-    case 2:
-        rgb[2] = p;
-        rgb[1] = v;
-        rgb[0]  = t;
-        break;
-    case 3:
-        rgb[2] = p;
-        rgb[1] = q;
-        rgb[0]  = v;
-        break;
-    case 4:
-        rgb[2] = t;
-        rgb[1] = p;
-        rgb[0]  = v;
-        break;
-    default:
-        rgb[2] = v;
-        rgb[1] = p;
-        rgb[0]  = q;
-        break;
+        rgb[2] = c;
+        rgb[1] = x;
+        rgb[0] = 0;
     }
+    else if (h_prime <= 2 && h_prime > 1)
+    {
+        rgb[2] = x;
+        rgb[1] = c;
+        rgb[0] = 0;
+    }
+    else if (h_prime <= 3 && h_prime > 2)
+    {
+        rgb[2] = 0;
+        rgb[1] = c;
+        rgb[0] = x;
+    }
+    else if (h_prime <= 4 && h_prime > 3)
+    {
+        rgb[2] = 0;
+        rgb[1] = x;
+        rgb[0] = c;
+    }
+    else if (h_prime <= 5 && h_prime > 4)
+    {
+        rgb[2] = x;
+        rgb[1] = 0;
+        rgb[0] = c;
+    }
+    else if (h_prime <= 6 && h_prime > 5)
+    {
+        rgb[2] = c;
+        rgb[1] = 0;
+        rgb[0] = x;
+    }
+
+    m = v - c;
+
+    rgb[2] += m;
+    rgb[1] += m;
+    rgb[0] += m;
+
+    rgb[2] *= 255.0;
+    rgb[1] *= 255.0;
+    rgb[0] *= 255.0;
 
     return rgb;
 }
 
-cv::Vec3b RgbToHsv(cv::Vec3b rgb)
+cv::Vec3f RgbToHsv(cv::Vec3f rgb)
 {
     cv::Vec3f hsv;
     float rgbMin, rgbMax;
@@ -191,16 +191,52 @@ void colorTransfOpenmp(cv::Mat_<cv::Vec3b>& src, cv::Mat_<cv::Vec3b>& dst, float
     float PI = 3.14159265358979323846;
 
     dst.create(src.rows, src.cols);
-    dst = cv::Vec3b(0, 0, 0);
+    dst = cv::Vec3f(0, 0, 0);
 
-    //#pragma omp parallel for
+    #pragma omp parallel for
     for (int i = 0; i < src.rows; i++)
     {
         for (int j = 0; j < src.cols; j++)
         {
-            dst(i,j) = RgbToHsv((cv::Vec3b)src(i,j));
-            //dst(i, j)[0] += angle;
+            dst(i,j) = RgbToHsv((cv::Vec3f)src(i,j));
+            dst(i, j)[0] += angle;
             dst(i, j) = HsvToRgb(dst(i, j));
+        }
+    }
+}
+
+void imageCombOpenmp(cv::Mat_<cv::Vec3b>& src, cv::Mat_<cv::Vec3b>& dst, cv::Mat_<cv::Vec3b>& src2, int imageComb, float offSet, float scaleFactor)
+{
+
+    dst.create(src.rows, src.cols);
+    dst = cv::Vec3f(0, 0, 0);
+
+    #pragma omp parallel for
+    for (int i = 0; i < src.rows; i++)
+    {
+        for (int j = 0; j < src.cols; j++)
+        {
+            for (int c = 0; c < 3; c++)
+            {
+                if (imageComb == 0) {
+                    dst(i, j)[c] = src(i, j)[c] + src2(i, j)[c];
+                }
+                else if (imageComb == 1) {
+                    dst(i, j)[c] = src(i, j)[c] - src2(i, j)[c];
+                }
+                else if (imageComb == 2) {
+                    dst(i, j)[c] = src(i, j)[c] * src2(i, j)[c];
+                }
+                else if (imageComb == 3) {
+                    dst(i, j)[c] = src2(i, j)[c] == 0 ? src(i, j)[c] : (src(i, j)[c] / src2(i, j)[c]);
+                }
+            }
+
+            for (int c = 0; c < 3; c++)
+            {
+                dst(i, j)[c] *= scaleFactor;
+                dst(i, j)[c] += offSet;
+            }
         }
     }
 }
