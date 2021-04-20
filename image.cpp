@@ -9,6 +9,8 @@ void startCUDA(cv::cuda::GpuMat& src, cv::cuda::GpuMat& dst, int dimX, int dimY)
 
 void gaussianCUDA(cv::cuda::GpuMat& src, cv::cuda::GpuMat& dst, int dimX, int dimY);
 
+void imageCombCUDA(cv::cuda::GpuMat& src, cv::cuda::GpuMat& dst, cv::cuda::GpuMat& src2, int dimX, int dimY, int imageComb, float offSet, float scaleFactor);
+
 void gaussianConvOpenmp(cv::Mat_<cv::Vec3b>& src, cv::Mat_<cv::Vec3b>& dst, int kernelSize, int sigma);
 
 void laplacianConvOpenmp(cv::Mat_<cv::Vec3b>& src, cv::Mat_<cv::Vec3b>& dst);
@@ -30,7 +32,7 @@ int main(int argc, char** argv)
     float angle = 40.0;
 
     // image combination parameters
-    int imageComb = 3;
+    int imageComb = 0;
     float offSet = 0.5;
     float scaleFactor = 0.5;
 
@@ -76,7 +78,8 @@ int main(int argc, char** argv)
             cout << dim << ":" << iter / diff.count() << endl;
         }*/
 
-        gaussianCUDA(d_img, d_result, 32, 32);
+        // gaussianCUDA(d_img, d_result, 32, 32);
+        imageCombCUDA(d_img, d_result, d_img2, 32, 32, imageComb, offSet, scaleFactor);
 
         cv::imshow("Processed Image", d_result);
     }

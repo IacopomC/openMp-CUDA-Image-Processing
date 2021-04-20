@@ -240,3 +240,4 @@ void imageCombOpenmp(cv::Mat_<cv::Vec3b>& src, cv::Mat_<cv::Vec3b>& dst, cv::Mat
         }
     }
 }
+
