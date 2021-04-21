@@ -71,8 +71,8 @@ cv::Mat_<float> generateGaussianKernel1D(int kernelSize, int sigma)
 
 int main(int argc, char** argv)
 {
-    bool cuda = true;
-    bool kernel = true;
+    bool cuda = false; // true only if using CUDA
+    bool kernel = true; // true only if using a kernel
 
      // ========== OPENMP ========== //
 
@@ -80,7 +80,7 @@ int main(int argc, char** argv)
     cv::Mat_<cv::Vec3b> tmp_img;
 
     // gaussian parameters
-    int kernelSize = 1; // for laplacian, set equal to 1
+    int kernelSize = 5; // for laplacian, set equal to 1
     int sigma = 30;
 
     // color transform parameters
@@ -153,11 +153,11 @@ int main(int argc, char** argv)
         }*/
 
         // ======== GAUSSIAN SEPARABLE======== //
-        
+        /*
         h_kernel_1D = generateGaussianKernel1D(kernelSizeGaussS, sigmaGaussS);
         d_kernel_1D.upload(h_kernel_1D);
         gaussianSepCUDA(d_img, d_result, d_tmp_img, 32, 32, d_kernel_1D, kernelSizeGaussS, sigmaGaussS);
-        
+        */
         
         // ======== GAUSSIAN CONVOLUTION ======== //
         /*
@@ -197,21 +197,22 @@ int main(int argc, char** argv)
         cout << "Iterations per second" << iter / diff.count() << endl;*/
 
         // ======== GAUSSIAN ======== //
-        gaussianConvOpenmp(h_img, h_result, kernelSize, sigma);
+        // gaussianConvOpenmp(h_img, h_result, kernelSize, sigma);
          
         // ======== LAPLACIAN ======== //
-        //laplacianConvOpenmp(h_img, h_result);
+        // laplacianConvOpenmp(h_img, h_result);
         
         // ======== COLOR TRANSFORM ======== //
-        // colorTransfOpenmp(h_img, h_result, angle);
+        //colorTransfOpenmp(h_img, h_result, angle);
         
         // ======== IMAGE COMBINATION ======== //
         // imageCombOpenmp(h_img, h_result, h_img2, imageComb, offSet, scaleFactor);
 
         // ======== GAUSSIAN SEPARABLE ======== //
-        //gaussianSepOpenmp(h_img, h_result, tmp_img, kernelSize, sigma);
+        gaussianSepOpenmp(h_img, h_result, tmp_img, kernelSize, sigma);
 
         cv::imshow("Processed Image", h_result);
+        //std::cout << h_result;
     }
 
     cv::waitKey();
