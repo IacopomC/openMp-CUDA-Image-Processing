@@ -26,6 +26,57 @@ __global__ void process(const cv::cuda::PtrStep<uchar3> src, cv::cuda::PtrStep<u
     }
 }
 
+__global__ void gaussianSep(const cv::cuda::PtrStep<uchar3> src, cv::cuda::PtrStep<uchar3> dst, cv::cuda::PtrStep<uchar3> d_tmp_img,
+    int rows, int cols, cv::cuda::PtrStep<float> d_kernelGaussConv, int kernelSize, int sigma)
+{
+
+    const int dst_x = blockDim.x * blockIdx.x + threadIdx.x;
+    const int dst_y = blockDim.y * blockIdx.y + threadIdx.y;
+
+    const float k = (kernelSize - 1.0) / 2.0;
+
+    if (dst_x < cols - k && dst_y < rows - k &&
+        dst_x > k && dst_y > k)
+    {
+        float tmp[3] = { 0.0, 0.0, 0.0, };
+
+        for (int u = dst_x - k; u <= dst_x + k; u++)
+        {
+            tmp[0] += (float)src(dst_y, u).x * d_kernelGaussConv(0, u - dst_x + k);
+
+            tmp[1] += (float)src(dst_y, u).y * d_kernelGaussConv(0, u - dst_x + k);
+
+            tmp[2] += (float)src(dst_y, u).z * d_kernelGaussConv(0, u - dst_x + k);
+        }
+        d_tmp_img(dst_y, dst_x).x = tmp[0];
+        d_tmp_img(dst_y, dst_x).y = tmp[1];
+        d_tmp_img(dst_y, dst_x).z = tmp[2];
+
+    }
+    
+    __syncthreads();
+
+    if (dst_x < cols - k && dst_y < rows - k &&
+        dst_x > k && dst_y > k)
+    {
+        float tmp[3] = { 0.0, 0.0, 0.0, };
+
+        for (int v = dst_y - k; v <= dst_y + k; v++)
+        {
+            tmp[0] += (float)d_tmp_img(v, dst_x).x * d_kernelGaussConv(0, v - dst_y + k);
+
+            tmp[1] += (float)d_tmp_img(v, dst_x).y * d_kernelGaussConv(0, v - dst_y + k);
+
+            tmp[2] += (float)d_tmp_img(v, dst_x).z * d_kernelGaussConv(0, v - dst_y + k);
+        }
+        dst(dst_y, dst_x).x = (unsigned char)(tmp[0]);
+        dst(dst_y, dst_x).y = (unsigned char)(tmp[1]);
+        dst(dst_y, dst_x).z = (unsigned char)(tmp[2]);
+        
+    }
+
+}
+
 __global__ void gaussianConv(const cv::cuda::PtrStep<uchar3> src, cv::cuda::PtrStep<uchar3> dst, int rows, int cols, cv::cuda::PtrStep<float> d_kernelGaussConv, int kernelSize, int sigma)
 {
 
@@ -53,10 +104,7 @@ __global__ void gaussianConv(const cv::cuda::PtrStep<uchar3> src, cv::cuda::PtrS
         dst(dst_y, dst_x).x = (unsigned char)(tmp[0]);
         dst(dst_y, dst_x).y = (unsigned char)(tmp[1]);
         dst(dst_y, dst_x).z = (unsigned char)(tmp[2]);
-        /*
-        dst(dst_y, dst_x).x = src(dst_y, dst_x).x;
-        dst(dst_y, dst_x).y = src(dst_y, dst_x).y;
-        dst(dst_y, dst_x).z = src(dst_y, dst_x).z;*/
+
     }
 
 }
@@ -138,6 +186,17 @@ void startCUDA(cv::cuda::GpuMat& src, cv::cuda::GpuMat& dst, int dimX, int dimY)
     const dim3 grid(divUp(dst.cols, block.x), divUp(dst.rows, block.y));
 
     process << <grid, block >> > (src, dst, dst.rows, dst.cols);
+
+}
+
+
+void gaussianSepCUDA(cv::cuda::GpuMat& src, cv::cuda::GpuMat& dst, cv::cuda::GpuMat& tmp_img, int dimX, int dimY, cv::cuda::GpuMat& d_kernelGaussConv, int kernelSize, int sigma)
+{
+
+    const dim3 block(dimX, dimY);
+    const dim3 grid(divUp(dst.cols, block.x), divUp(dst.rows, block.y));
+
+    gaussianSep << <grid, block >> > (src, dst, tmp_img, dst.rows, dst.cols, d_kernelGaussConv, kernelSize, sigma);
 
 }
 
