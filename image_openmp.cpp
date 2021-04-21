@@ -131,7 +131,7 @@ void gaussianSepOpenmp(cv::Mat_<cv::Vec3b>& src, cv::Mat_<cv::Vec3b>& dst, cv::M
 }
 
 //----------------------CIE Hsv----------------------
-cv::Vec3b HsvToRgb(cv::Vec3f hsv)
+cv::Vec3f HsvToRgb(cv::Vec3f hsv)
 {
     cv::Vec3f rgb;
     float h, s, v, x, c, m, h_prime;
@@ -139,6 +139,10 @@ cv::Vec3b HsvToRgb(cv::Vec3f hsv)
     h = hsv[0];
     s = hsv[1];
     v = hsv[2];
+
+    std::cout << "h " << h << "\n";
+    std::cout << "s " << s << "\n";
+    std::cout << "v " << v << "\n";
 
     c = s * v;
 
@@ -233,6 +237,10 @@ cv::Vec3f RgbToHsv(cv::Vec3f rgb)
     else
         hsv[0] = (60 * (4.0 + (r - g) / (rgbMax - rgbMin)));
 
+    /*std::cout << "h " << hsv[0] << "\n";
+    std::cout << "s " << hsv[1] << "\n";
+    std::cout << "v " << hsv[2] << "\n";*/
+
     return hsv;
 }
 
@@ -252,6 +260,7 @@ void colorTransfOpenmp(cv::Mat_<cv::Vec3b>& src, cv::Mat_<cv::Vec3b>& dst, float
         for (int j = 0; j < src.cols; j++)
         {
             dst(i,j) = RgbToHsv((cv::Vec3f)src(i,j));
+            std::cout << dst(i, j) << "\n";
             //dst(i, j)[0] += angle;
             dst(i, j) = HsvToRgb(dst(i, j));
         }

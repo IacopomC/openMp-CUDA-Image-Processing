@@ -72,7 +72,7 @@ cv::Mat_<float> generateGaussianKernel1D(int kernelSize, int sigma)
 int main(int argc, char** argv)
 {
     bool cuda = false; // true only if using CUDA
-    bool kernel = true; // true only if using a kernel
+    bool kernel = false; // true only if using a kernel
 
      // ========== OPENMP ========== //
 
@@ -203,13 +203,13 @@ int main(int argc, char** argv)
         // laplacianConvOpenmp(h_img, h_result);
         
         // ======== COLOR TRANSFORM ======== //
-        //colorTransfOpenmp(h_img, h_result, angle);
+        colorTransfOpenmp(h_img, h_result, angle);
         
         // ======== IMAGE COMBINATION ======== //
         // imageCombOpenmp(h_img, h_result, h_img2, imageComb, offSet, scaleFactor);
 
         // ======== GAUSSIAN SEPARABLE ======== //
-        gaussianSepOpenmp(h_img, h_result, tmp_img, kernelSize, sigma);
+        // gaussianSepOpenmp(h_img, h_result, tmp_img, kernelSize, sigma);
 
         cv::imshow("Processed Image", h_result);
         //std::cout << h_result;
