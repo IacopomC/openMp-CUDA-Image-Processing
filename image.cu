@@ -7,22 +7,104 @@
 #include <opencv2/core/cuda/vec_traits.hpp>
 #include <opencv2/core/cuda/vec_math.hpp>
 
-__global__ void process(const cv::cuda::PtrStep<uchar3> src, cv::cuda::PtrStep<uchar3> dst, int rows, int cols)
+__global__ void denoising(const cv::cuda::PtrStep<uchar3> src, cv::cuda::PtrStep<uchar3> dst, int rows, int cols, int kernelSize, int percent)
 {
 
     const int dst_x = blockDim.x * blockIdx.x + threadIdx.x;
     const int dst_y = blockDim.y * blockIdx.y + threadIdx.y;
 
-    uchar3 full = make_uchar3(255, 255, 255);
+    const int k = (kernelSize - 1.0) / 2.0;
 
-
-    if (dst_x < cols && dst_y < rows)
+    if (dst_x < cols - k && dst_y < rows - k &&
+        dst_x > k && dst_y > k)
     {
-        uchar3 val = src(dst_y, dst_x);
+        float rNeighbors[144];
+        float gNeighbors[144];
+        float bNeighbors[144];
 
-        dst(dst_y, dst_x).x = full.x - val.x;
-        dst(dst_y, dst_x).y = full.y - val.y;
-        dst(dst_y, dst_x).z = full.z - val.z;
+        float rValue = 0.0;
+        float gValue = 0.0;
+        float bValue = 0.0;
+
+        int counter = 0;
+
+        for (int u = dst_x - k; u <= dst_x + k; u++)
+        {
+            for (int v = dst_y - k; v <= dst_y + k; v++)
+            {
+                rNeighbors[counter] = (float)src(v, u).z;
+                gNeighbors[counter] = (float)src(v, u).y;
+                bNeighbors[counter] = (float)src(v, u).x;
+                counter++;
+            }
+        }
+
+        int key, j;
+        for (int i = 1; i < k*k; i++)
+        {
+            key = rNeighbors[i];
+            j = i - 1;
+
+            while (j >= 0 && rNeighbors[j] > key)
+            {
+                rNeighbors[j + 1] = rNeighbors[j];
+                j = j - 1;
+            }
+            rNeighbors[j + 1] = key;
+        }
+
+        for (int i = 1; i < k * k; i++)
+        {
+            key = gNeighbors[i];
+            j = i - 1;
+
+            while (j >= 0 && gNeighbors[j] > key)
+            {
+                gNeighbors[j + 1] = gNeighbors[j];
+                j = j - 1;
+            }
+            gNeighbors[j + 1] = key;
+        }
+
+        for (int i = 1; i < k * k; i++)
+        {
+            key = bNeighbors[i];
+            j = i - 1;
+
+            while (j >= 0 && bNeighbors[j] > key)
+            {
+                bNeighbors[j + 1] = bNeighbors[j];
+                j = j - 1;
+            }
+            bNeighbors[j + 1] = key;
+        }
+
+        int medianIndx = 0;
+        if (kernelSize % 2 == 0) {
+            medianIndx = kernelSize * kernelSize / 2;
+        }
+        else {
+            medianIndx = (kernelSize * kernelSize - 1) / 2;
+        }
+
+        int numEl = (kernelSize * kernelSize * int(percent) / 100) / 2;
+
+        for (int w = (medianIndx - numEl); w <= (medianIndx + numEl); w++) {
+            rValue += rNeighbors[w];
+            gValue += gNeighbors[w];
+            bValue += bNeighbors[w];
+        }
+
+        if (numEl >= 1) {
+            rValue /= float(2 * numEl);
+            gValue /= float(2 * numEl);
+            bValue /= float(2 * numEl);
+        }
+
+        dst(dst_y, dst_x).z = (unsigned char)(rValue);
+        dst(dst_y, dst_x).y = (unsigned char)(gValue);
+        dst(dst_y, dst_x).x = (unsigned char)(bValue);
+
     }
 }
 
@@ -180,15 +262,15 @@ int divUp(int a, int b)
     return ((a % b) != 0) ? (a / b + 1) : (a / b);
 }
 
-void startCUDA(cv::cuda::GpuMat& src, cv::cuda::GpuMat& dst, int dimX, int dimY)
+void denoisingCUDA(cv::cuda::GpuMat& src, cv::cuda::GpuMat& dst, int dimX, int dimY, int kernelSize, int percent) 
 {
+
     const dim3 block(dimX, dimY);
     const dim3 grid(divUp(dst.cols, block.x), divUp(dst.rows, block.y));
 
-    process << <grid, block >> > (src, dst, dst.rows, dst.cols);
+    denoising << <grid, block >> > (src, dst, dst.rows, dst.cols, kernelSize, percent);
 
 }
-
 
 void gaussianSepCUDA(cv::cuda::GpuMat& src, cv::cuda::GpuMat& dst, cv::cuda::GpuMat& tmp_img, int dimX, int dimY, cv::cuda::GpuMat& d_kernelGaussConv, int kernelSize, int sigma)
 {
