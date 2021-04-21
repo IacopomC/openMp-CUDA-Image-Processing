@@ -44,8 +44,6 @@ void laplacianConvOpenmp(cv::Mat_<cv::Vec3b>& src, cv::Mat_<cv::Vec3b>& dst)
     dst.create(src.rows - 2 * k, src.cols - 2 * k);
     dst = cv::Vec3b(0, 0, 0);
 
-    float laplacian[9] = { -1.0, -1.0, -1.0, -1.0 , 8.0, -1.0, -1.0, -1.0, -1.0 };
-
     const int laplace_mat[3][3] = {
     {-1, -1, -1},
     {-1,  8, -1},
@@ -57,8 +55,6 @@ void laplacianConvOpenmp(cv::Mat_<cv::Vec3b>& src, cv::Mat_<cv::Vec3b>& dst)
     {
         for (int j = k; j < src.cols - k; j++)
         {
-            int counter = 0;
-            //float tmp[3] = { 0.0, 0.0, 0.0, };
             cv::Vec3f tmp = cv::Vec3f(0, 0, 0);
             for (int u = i - k; u <= i + k; u++)
             {
