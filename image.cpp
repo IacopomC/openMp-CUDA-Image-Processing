@@ -5,7 +5,7 @@
 
 using namespace std;
 
-void startCUDA(cv::cuda::GpuMat& src, cv::cuda::GpuMat& dst, int dimX, int dimY);
+void denoisingCUDA(cv::cuda::GpuMat& src, cv::cuda::GpuMat& dst, int dimX, int dimY, int kernelSize, int percent);
 
 void gaussianSepCUDA(cv::cuda::GpuMat& src, cv::cuda::GpuMat& dst, cv::cuda::GpuMat& tmp_img, int dimX, int dimY, cv::cuda::GpuMat& d_kernelGaussConv, int kernelSize, int sigma);
 
@@ -25,7 +25,9 @@ void colorTransfOpenmp(cv::Mat_<cv::Vec3b>& src, cv::Mat_<cv::Vec3b>& dst, float
 
 void imageCombOpenmp(cv::Mat_<cv::Vec3b>& src, cv::Mat_<cv::Vec3b>& dst, cv::Mat_<cv::Vec3b>& src2, int imageComb, float offSet, float scaleFactor);
 
-void denoisingOpenmp(cv::Mat_<cv::Vec3b>& src, cv::Mat_<cv::Vec3b>& dst, int kernelSize, int sigma, int percent);
+void denoisingOpenmp(cv::Mat_<cv::Vec3b>& src, cv::Mat_<cv::Vec3b>& dst, int kernelSize, int percent);
+
+void scalingOpenmp(cv::Mat_<cv::Vec3b>& src, cv::Mat_<cv::Vec3b>& dst, float scaling);
 
 cv::Mat_<float> generateGaussianKernel(int kernelSize, int sigma)
 {
@@ -74,7 +76,7 @@ cv::Mat_<float> generateGaussianKernel1D(int kernelSize, int sigma)
 int main(int argc, char** argv)
 {
     bool cuda = false; // true only if using CUDA
-    bool kernel = false; // true only if using a kernel
+    bool kernel = true; // true only if using a kernel
 
      // ========== OPENMP ========== //
 
@@ -82,7 +84,7 @@ int main(int argc, char** argv)
     cv::Mat_<cv::Vec3b> tmp_img;
 
     // gaussian parameters
-    int kernelSize = 5; // for laplacian, set equal to 1
+    int kernelSize = 1; // for laplacian and scaling set equal to 1
     int sigma = 30;
 
     // color transform parameters
@@ -96,21 +98,32 @@ int main(int argc, char** argv)
     // denoising parameters
     int percent = 50;
 
+    // scaling parameters
+    float scaling = 4; // don't go higher than 4
+
     // =========== CUDA =========== //
 
-    // CUDA gaussian convolution param
+    // CUDA gaussian convolution params
     const int kernelSizeGaussC = 5;
     int sigmaGaussC = 11;
     cv::cuda::GpuMat d_kernel;
     cv::Mat_<float> h_kernel;
 
 
-    // CUDA gaussian separable param
+    // CUDA gaussian separable params
     const int kernelSizeGaussS = 5;
     int sigmaGaussS = 11;
     cv::cuda::GpuMat d_tmp_img;
     cv::cuda::GpuMat d_kernel_1D;
     cv::Mat_<float> h_kernel_1D;
+
+    // CUDA denoising params
+    cv::cuda::GpuMat d_rNeighbor;
+    cv::Mat_<float> h_rNeighbor;
+    cv::cuda::GpuMat d_gNeighbor;
+    cv::Mat_<float> h_gNeighbor;
+    cv::cuda::GpuMat d_bNeighbor;
+    cv::Mat_<float> h_bNeighbor;
 
     cv::namedWindow("Original Image", cv::WINDOW_OPENGL | cv::WINDOW_AUTOSIZE);
     cv::namedWindow("Processed Image", cv::WINDOW_OPENGL | cv::WINDOW_AUTOSIZE);
@@ -176,7 +189,17 @@ int main(int argc, char** argv)
          
         // ======== LAPLACIAN ======== //
         // laplacianCUDA(d_img, d_result, 32, 32);
- 
+
+        // ======== DENOISING ======== //
+        /*
+        d_rNeighbor.upload(h_rNeighbor);
+        d_gNeighbor.upload(h_gNeighbor);
+        d_bNeighbor.upload(h_bNeighbor);*/
+        denoisingCUDA(d_img, d_result, 32, 32, kernelSize, percent);
+
+        // ======== SCALING ======== //
+        
+
         /*d_result.download(h_result);
         std::cout << h_result;*/
 
@@ -217,9 +240,10 @@ int main(int argc, char** argv)
         // gaussianSepOpenmp(h_img, h_result, tmp_img, kernelSize, sigma);
 
         // ======== DENOISING ======== //
-        denoisingOpenmp(h_img, h_result, kernelSize, sigma, percent);
+        // denoisingOpenmp(h_img, h_result, kernelSize, percent);
 
-        //std::cout << h_result;
+        // ======== SCALING ======== //
+        scalingOpenmp(h_img, h_result, scaling);
 
         cv::imshow("Processed Image", h_result);
         //std::cout << h_result;
