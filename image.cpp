@@ -25,6 +25,8 @@ void colorTransfOpenmp(cv::Mat_<cv::Vec3b>& src, cv::Mat_<cv::Vec3b>& dst, float
 
 void imageCombOpenmp(cv::Mat_<cv::Vec3b>& src, cv::Mat_<cv::Vec3b>& dst, cv::Mat_<cv::Vec3b>& src2, int imageComb, float offSet, float scaleFactor);
 
+void denoisingOpenmp(cv::Mat_<cv::Vec3b>& src, cv::Mat_<cv::Vec3b>& dst, int kernelSize, int sigma, int percent);
+
 cv::Mat_<float> generateGaussianKernel(int kernelSize, int sigma)
 {
     float PI = 3.14159265358979323846;
@@ -84,12 +86,15 @@ int main(int argc, char** argv)
     int sigma = 30;
 
     // color transform parameters
-    float angle = 40.0;
+    float angle = 360.0;
 
     // image combination parameters
     int imageComb = 0;
     float offSet = 0.5;
     float scaleFactor = 0.5;
+
+    // denoising parameters
+    int percent = 50;
 
     // =========== CUDA =========== //
 
@@ -203,13 +208,18 @@ int main(int argc, char** argv)
         // laplacianConvOpenmp(h_img, h_result);
         
         // ======== COLOR TRANSFORM ======== //
-        colorTransfOpenmp(h_img, h_result, angle);
+        // colorTransfOpenmp(h_img, h_result, angle);
         
         // ======== IMAGE COMBINATION ======== //
         // imageCombOpenmp(h_img, h_result, h_img2, imageComb, offSet, scaleFactor);
 
         // ======== GAUSSIAN SEPARABLE ======== //
         // gaussianSepOpenmp(h_img, h_result, tmp_img, kernelSize, sigma);
+
+        // ======== DENOISING ======== //
+        denoisingOpenmp(h_img, h_result, kernelSize, sigma, percent);
+
+        //std::cout << h_result;
 
         cv::imshow("Processed Image", h_result);
         //std::cout << h_result;
