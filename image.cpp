@@ -76,7 +76,7 @@ cv::Mat_<float> generateGaussianKernel1D(int kernelSize, int sigma)
 int main(int argc, char** argv)
 {
     bool cuda = false; // true only if using CUDA
-    bool kernel = true; // true only if using a kernel
+    bool kernel = false; // true only if using a kernel
 
      // ========== OPENMP ========== //
 
@@ -88,7 +88,7 @@ int main(int argc, char** argv)
     int sigma = 30;
 
     // color transform parameters
-    float angle = 360.0;
+    float angle = 40.0;
 
     // image combination parameters
     int imageComb = 0;
@@ -99,7 +99,7 @@ int main(int argc, char** argv)
     int percent = 50;
 
     // scaling parameters
-    float scaling = 4; // don't go higher than 4
+    float scaling = 0.5; // don't go higher than 4
 
     // =========== CUDA =========== //
 
@@ -137,7 +137,7 @@ int main(int argc, char** argv)
     d_result.upload(h_img);
     d_tmp_img.upload(h_img);
 
-    // change kernel size with corresponding parameter of used filter
+    // change kernel size variable according to which filter is selected
     int border = (int)(kernelSizeGaussS - 1) / 2;
 
     if (kernel) {
@@ -231,7 +231,7 @@ int main(int argc, char** argv)
         // laplacianConvOpenmp(h_img, h_result);
         
         // ======== COLOR TRANSFORM ======== //
-        // colorTransfOpenmp(h_img, h_result, angle);
+        colorTransfOpenmp(h_img, h_result, angle);
         
         // ======== IMAGE COMBINATION ======== //
         // imageCombOpenmp(h_img, h_result, h_img2, imageComb, offSet, scaleFactor);
@@ -243,7 +243,7 @@ int main(int argc, char** argv)
         // denoisingOpenmp(h_img, h_result, kernelSize, percent);
 
         // ======== SCALING ======== //
-        scalingOpenmp(h_img, h_result, scaling);
+        // scalingOpenmp(h_img, h_result, scaling);
 
         cv::imshow("Processed Image", h_result);
         //std::cout << h_result;
