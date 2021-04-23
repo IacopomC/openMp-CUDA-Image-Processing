@@ -7,6 +7,160 @@
 #include <opencv2/core/cuda/vec_traits.hpp>
 #include <opencv2/core/cuda/vec_math.hpp>
 
+__device__ float linearInt(float s, float e, float t) {
+    return s + (e - s) * t;
+}
+
+__device__ uchar3 bInterp(uchar3  c00, uchar3  c10, uchar3  c01, uchar3  c11, float tx, float ty) {
+
+    float bchannel = linearInt(linearInt((float)c00.x, (float)c10.x, tx), linearInt((float)c01.x, (float)c11.x, tx), ty);
+    float gchannel = linearInt(linearInt((float)c00.y, (float)c10.y, tx), linearInt((float)c01.y, (float)c11.y, tx), ty);
+    float rchannel = linearInt(linearInt((float)c00.z, (float)c10.z, tx), linearInt((float)c01.z, (float)c11.z, tx), ty);
+
+    uchar3 interp;
+    interp.x = (unsigned char)bchannel;
+    interp.y = (unsigned char)gchannel;
+    interp.z = (unsigned char)rchannel;
+
+    return interp;
+}
+
+__global__ void scaling(const cv::cuda::PtrStep<uchar3> src, cv::cuda::PtrStep<uchar3> dst, int rows, int cols, int oldRows, int oldCols, float scaleFactor)
+{
+    
+    const int dst_x = blockDim.x * blockIdx.x + threadIdx.x;
+    const int dst_y = blockDim.y * blockIdx.y + threadIdx.y;
+
+    float x_ratio = float(oldCols - 1) / cols;
+    float y_ratio = float(oldRows - 1) / rows;
+
+    if (dst_x < cols && dst_y < rows)
+    {
+        float gx, gy, tx, ty;
+
+        // Break into an integral and a fractional part
+        gx, tx = modf(dst_x * x_ratio, &gx);
+        gy, ty = modf(dst_y * y_ratio, &gy);
+        uchar3 c00 = src(gy, gx);
+        uchar3 c10 = src(gy, gx + 1);
+        uchar3 c01 = src(gy + 1, gx);
+        uchar3 c11 = src(gy + 1, gx + 1);
+        dst(dst_y, dst_x) = bInterp(c00, c10, c01, c11, tx, ty);
+        /*
+        dst(dst_y, dst_x).x = src(dst_y, dst_x).x;
+        dst(dst_y, dst_x).y = src(dst_y, dst_x).y;
+        dst(dst_y, dst_x).z = src(dst_y, dst_x).z;
+        */
+    }
+}
+
+__device__ float3 bgr2xyz(uchar3 src) {
+
+    float scr_r = src.z / 255.0;
+    float scr_g = src.y / 255.0;
+    float scr_b = src.x / 255.0;
+
+    float tmp[3];
+    tmp[0] = 100.0 * ((scr_r > .04045) ? pow((scr_r + .055) / 1.055, 2.4) : scr_r / 12.92);
+    tmp[1] = 100.0 * ((scr_g > .04045) ? pow((scr_g + .055) / 1.055, 2.4) : scr_g / 12.92);
+    tmp[2] = 100.0 * ((scr_b > .04045) ? pow((scr_b + .055) / 1.055, 2.4) : scr_b / 12.92);
+
+    float3 xyz;
+    xyz.x = .4124 * tmp[0] + .3576 * tmp[1] + .1805 * tmp[2];
+    xyz.y = .2126 * tmp[0] + .7152 * tmp[1] + .0722 * tmp[2];
+    xyz.z = .0193 * tmp[0] + .1192 * tmp[1] + .9505 * tmp[2];
+    
+    return xyz;
+}
+
+__device__ float3 xyz2lab(float3 src, float angle) {
+
+    float scr_z = src.z / 108.883;
+    float scr_y = src.y / 100.;
+    float scr_x = src.x / 95.047;
+
+    float PI = 3.14159265358979323846;
+
+    float v[3];
+    v[0] = (scr_x > .008856) ? pow(scr_x, 1. / 3.) : (7.787 * scr_x) + (16. / 116.);
+    v[1] = (scr_y > .008856) ? pow(scr_y, 1. / 3.) : (7.787 * scr_y) + (16. / 116.);
+    v[2] = (scr_z > .008856) ? pow(scr_z, 1. / 3.) : (7.787 * scr_z) + (16. / 116.);
+
+    float3 lab;
+    lab.x = (116. * v[1]) - 16.;
+    lab.y = 500. * (v[0] - v[1]);
+    lab.z = 200. * (v[1] - v[2]);
+    
+    float C = sqrt(pow(lab.y, 2) + pow(lab.z, 2));
+    float h = atan2(lab.z, lab.y);
+    h += (angle * PI) / 180.0;
+    lab.y = cos(h) * C;
+    lab.z = sin(h) * C;
+
+    return lab;
+}
+
+__device__ float3 bgr2lab(uchar3 c, float angle) {
+    return xyz2lab(bgr2xyz(c), angle);
+}
+
+__device__ float3 lab2xyz(float3 src) {
+
+    float fy = (src.x + 16.0) / 116.0;
+    float fx = src.y / 500.0 + fy;
+    float fz = fy - src.z / 200.0;
+
+    float3 lab;
+    lab.x = 95.047 * ((fx > 0.206897) ? fx * fx * fx : (fx - 16.0 / 116.0) / 7.787);
+    lab.y = 100.000 * ((fy > 0.206897) ? fy * fy * fy : (fy - 16.0 / 116.0) / 7.787);
+    lab.z = 108.883 * ((fz > 0.206897) ? fz * fz * fz : (fz - 16.0 / 116.0) / 7.787);
+
+    return lab;
+}
+
+__device__ float3 xyz2bgr(float3 src) {
+
+    src.x /= 100.0;
+    src.y /= 100.0;
+    src.z /= 100.0;
+
+    
+    float tmp[3];
+
+    tmp[0] = 3.2406 * src.x - 1.5372 * src.y - 0.4986 * src.z;
+    tmp[1] = -0.9689 * src.x + 1.8758 * src.y + 0.0415 * src.z;
+    tmp[2] = 0.0557 * src.x - 0.2040 * src.y + 1.0570 * src.z;
+
+    float3 bgr;
+    bgr.z = 255.0 * ((tmp[0] > 0.0031308) ? ((1.055 * pow(tmp[0], (1.0 / 2.4))) - 0.055) : 12.92 * (tmp[0]));
+    bgr.y = 255.0 * ((tmp[1] > 0.0031308) ? ((1.055 * pow(tmp[1], (1.0 / 2.4))) - 0.055) : 12.92 * (tmp[1]));
+    bgr.x = 255.0 * ((tmp[2] > 0.0031308) ? ((1.055 * pow(tmp[2], (1.0 / 2.4))) - 0.055) : 12.92 * (tmp[2]));
+
+    return bgr;
+}
+
+__device__ float3 lab2bgr(float3 src) {
+    return xyz2bgr(lab2xyz(src));
+}
+
+
+
+__global__ void hueShift(const cv::cuda::PtrStep<uchar3> src, cv::cuda::PtrStep<uchar3> dst, cv::cuda::PtrStep<uchar3> d_tmp_img, int rows, int cols, float angle)
+{
+    
+    const int dst_x = blockDim.x * blockIdx.x + threadIdx.x;
+    const int dst_y = blockDim.y * blockIdx.y + threadIdx.y;
+
+    if (dst_x < cols && dst_y < rows)
+    {
+        dst(dst_y, dst_x).x = (unsigned char)lab2bgr(bgr2lab(src(dst_y, dst_x), angle)).x;
+        dst(dst_y, dst_x).y = (unsigned char)lab2bgr(bgr2lab(src(dst_y, dst_x), angle)).y;
+        dst(dst_y, dst_x).z = (unsigned char)lab2bgr(bgr2lab(src(dst_y, dst_x), angle)).z;
+        
+    }
+
+}
+
 __global__ void denoising(const cv::cuda::PtrStep<uchar3> src, cv::cuda::PtrStep<uchar3> dst, int rows, int cols, int kernelSize, int percent)
 {
 
@@ -96,9 +250,9 @@ __global__ void denoising(const cv::cuda::PtrStep<uchar3> src, cv::cuda::PtrStep
         }
 
         if (numEl >= 1) {
-            rValue /= float(2 * numEl);
-            gValue /= float(2 * numEl);
-            bValue /= float(2 * numEl);
+            rValue /= float(2 * numEl + 1);
+            gValue /= float(2 * numEl + 1);
+            bValue /= float(2 * numEl + 1);
         }
 
         dst(dst_y, dst_x).z = (unsigned char)(rValue);
@@ -260,6 +414,24 @@ __global__ void imageCombination(const cv::cuda::PtrStep<uchar3> src, cv::cuda::
 int divUp(int a, int b)
 {
     return ((a % b) != 0) ? (a / b + 1) : (a / b);
+}
+
+void scalingCUDA(cv::cuda::GpuMat& src, cv::cuda::GpuMat& dst, int dimX, int dimY, float scaleFactor)
+{
+    const dim3 block(dimX, dimY);
+    const dim3 grid(divUp(dst.cols, block.x), divUp(dst.rows, block.y));
+
+    scaling << <grid, block >> > (src, dst, dst.rows, dst.cols, src.rows, src.cols, scaleFactor);
+}
+
+void colorTransfCUDA(cv::cuda::GpuMat& src, cv::cuda::GpuMat& dst, cv::cuda::GpuMat& tmp_img, int dimX, int dimY, float angle)
+{
+
+    const dim3 block(dimX, dimY);
+    const dim3 grid(divUp(dst.cols, block.x), divUp(dst.rows, block.y));
+
+    hueShift << <grid, block >> > (src, dst, tmp_img, dst.rows, dst.cols, angle);
+
 }
 
 void denoisingCUDA(cv::cuda::GpuMat& src, cv::cuda::GpuMat& dst, int dimX, int dimY, int kernelSize, int percent) 
