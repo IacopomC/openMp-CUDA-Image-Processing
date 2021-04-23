@@ -254,14 +254,6 @@ cv::Vec3f bgr2xyz(const cv::Vec3f src) {
     };
 
     tmp *= 100.0;
-    /*
-    for (int i = 0; i < 3; i++)
-    {
-        for (int j = 0; j < 3; j++)
-        {
-            std::cout << "mat " << i << "," << j << " = " << mat[i][j] << "\n";
-        }
-    }*/
 
     cv::Vec3f xyz;
 
