@@ -1,9 +1,14 @@
 #include <iostream>
 #include <opencv2/opencv.hpp>
 #include <opencv2/cudawarping.hpp>
+#include <cuda_runtime.h>
 #include <chrono>  // for high_resolution_clock
 
 using namespace std;
+
+void scalingCUDA(cv::cuda::GpuMat& src, cv::cuda::GpuMat& dst, int dimX, int dimY, float scaleFactor);
+
+void colorTransfCUDA(cv::cuda::GpuMat& src, cv::cuda::GpuMat& dst, cv::cuda::GpuMat& tmp_img, int dimX, int dimY, float angle);
 
 void denoisingCUDA(cv::cuda::GpuMat& src, cv::cuda::GpuMat& dst, int dimX, int dimY, int kernelSize, int percent);
 
@@ -73,80 +78,16 @@ cv::Mat_<float> generateGaussianKernel1D(int kernelSize, int sigma)
     return h_kernel;
 }
 
+
 int main(int argc, char** argv)
 {
-    bool cuda = false; // true only if using CUDA
-    bool kernel = false; // true only if using a kernel
-
-     // ========== OPENMP ========== //
-
-    // gaussian separable parameters
-    cv::Mat_<cv::Vec3b> tmp_img;
-
-    // gaussian parameters
-    int kernelSize = 1; // for laplacian and scaling set equal to 1
-    int sigma = 30;
-
-    // color transform parameters
-    float angle = 40.0;
-
-    // image combination parameters
-    int imageComb = 0;
-    float offSet = 0.5;
-    float scaleFactor = 0.5;
-
-    // denoising parameters
-    int percent = 50;
-
-    // scaling parameters
-    float scaling = 0.5; // don't go higher than 4
-
-    // =========== CUDA =========== //
-
-    // CUDA gaussian convolution params
-    const int kernelSizeGaussC = 5;
-    int sigmaGaussC = 11;
-    cv::cuda::GpuMat d_kernel;
-    cv::Mat_<float> h_kernel;
-
-
-    // CUDA gaussian separable params
-    const int kernelSizeGaussS = 5;
-    int sigmaGaussS = 11;
-    cv::cuda::GpuMat d_tmp_img;
-    cv::cuda::GpuMat d_kernel_1D;
-    cv::Mat_<float> h_kernel_1D;
-
-    // CUDA denoising params
-    cv::cuda::GpuMat d_rNeighbor;
-    cv::Mat_<float> h_rNeighbor;
-    cv::cuda::GpuMat d_gNeighbor;
-    cv::Mat_<float> h_gNeighbor;
-    cv::cuda::GpuMat d_bNeighbor;
-    cv::Mat_<float> h_bNeighbor;
+    bool cuda = true; // true only if using CUDA
 
     cv::namedWindow("Original Image", cv::WINDOW_OPENGL | cv::WINDOW_AUTOSIZE);
     cv::namedWindow("Processed Image", cv::WINDOW_OPENGL | cv::WINDOW_AUTOSIZE);
 
     cv::Mat_<cv::Vec3b> h_img = cv::imread(argv[1]);
-    cv::Mat_<cv::Vec3b> h_img2 = cv::imread(argv[2]);
-    cv::cuda::GpuMat d_img, d_img2, d_result;
     cv::Mat_<cv::Vec3b> h_result;
-
-    d_img2.upload(h_img2);
-    d_result.upload(h_img);
-    d_tmp_img.upload(h_img);
-
-    // change kernel size variable according to which filter is selected
-    int border = (int)(kernelSizeGaussS - 1) / 2;
-
-    if (kernel) {
-        cv::copyMakeBorder(h_img, h_img, border, border, border, border, cv::BORDER_REPLICATE);
-    }
-
-    d_img.upload(h_img);
-
-    cv::imshow("Original Image", d_img);
 
     if (cuda)
     {
@@ -172,37 +113,133 @@ int main(int argc, char** argv)
 
         // ======== GAUSSIAN SEPARABLE======== //
         /*
+        cv::cuda::GpuMat d_result;
+        cv::cuda::GpuMat d_img;
+        
+        cv::cuda::GpuMat d_tmp_img;
+        cv::cuda::GpuMat d_kernel_1D;
+        cv::Mat_<float> h_kernel_1D;
+
+        const int kernelSizeGaussS = 5;
+        int sigmaGaussS = 11;
+
+        d_img.upload(h_img);
+        d_result.upload(h_img);
+        d_tmp_img.upload(h_img);
+
+        int border = (int)(kernelSizeGaussS - 1) / 2;
+
+        cv::copyMakeBorder(h_img, h_img, border, border, border, border, cv::BORDER_REPLICATE);
+
         h_kernel_1D = generateGaussianKernel1D(kernelSizeGaussS, sigmaGaussS);
         d_kernel_1D.upload(h_kernel_1D);
+
         gaussianSepCUDA(d_img, d_result, d_tmp_img, 32, 32, d_kernel_1D, kernelSizeGaussS, sigmaGaussS);
         */
         
         // ======== GAUSSIAN CONVOLUTION ======== //
         /*
+        cv::cuda::GpuMat d_result;
+        cv::cuda::GpuMat d_img;
+        cv::cuda::GpuMat d_kernel;
+        cv::Mat_<float> h_kernel;
+
+        d_img.upload(h_img);
+        d_result.upload(h_img);
+
+        const int kernelSizeGaussC = 5;
+        int sigmaGaussC = 11;
+
+        int border = (int)(kernelSizeGaussC - 1) / 2;
+
+        cv::copyMakeBorder(h_img, h_img, border, border, border, border, cv::BORDER_REPLICATE);
+
         h_kernel = generateGaussianKernel(kernelSizeGaussC, sigmaGaussC);
         d_kernel.upload(h_kernel);
         gaussianConvCUDA(d_img, d_result, 32, 32, d_kernel, kernelSizeGaussC, sigmaGaussC);
         */
 
         // ======== IMAGE COMBINATION ======== //
-        // imageCombCUDA(d_img, d_result, d_img2, 32, 32, imageComb, offSet, scaleFactor);
+        /*
+        cv::cuda::GpuMat d_result;
+        cv::cuda::GpuMat d_img;
+        cv::Mat_<cv::Vec3b> h_img2 = cv::imread(argv[2]);
+        cv::cuda::GpuMat d_img2;
+
+        d_img.upload(h_img);
+        d_result.upload(h_img);
+        d_img2.upload(h_img2);
+
+        int imageComb = 0; // 0, 1, 2, 3
+        float offSet = 0.5;
+        float scaleFactor = 0.5;
+
+        imageCombCUDA(d_img, d_result, d_img2, 32, 32, imageComb, offSet, scaleFactor);
+        */
          
         // ======== LAPLACIAN ======== //
-        // laplacianCUDA(d_img, d_result, 32, 32);
+        /*
+        cv::cuda::GpuMat d_result;
+        cv::cuda::GpuMat d_img;
+        d_img.upload(h_img);
+        d_result.upload(h_img);
+
+        laplacianCUDA(d_img, d_result, 32, 32);
+        */
 
         // ======== DENOISING ======== //
         /*
-        d_rNeighbor.upload(h_rNeighbor);
-        d_gNeighbor.upload(h_gNeighbor);
-        d_bNeighbor.upload(h_bNeighbor);*/
-        denoisingCUDA(d_img, d_result, 32, 32, kernelSize, percent);
+        cv::cuda::GpuMat d_result;
+        cv::cuda::GpuMat d_img;
+
+        d_img.upload(h_img);
+        d_result.upload(h_img);
+
+        int percent = 50;
+        const int kernelSize = 5;
+        
+        denoisingCUDA(d_img, d_result, 32, 32, kernelSize, percent);        
+        */
 
         // ======== SCALING ======== //
+
+        /*
+        cv::cuda::GpuMat d_result;
+        cv::cuda::GpuMat d_img;
+
+        float scaling = 2; // don't go higher than 4
+
+        cv::Size orig_Size = h_img.size();
+        cv::Size new_Size(orig_Size.width* scaling, orig_Size.height* scaling);
+        //cv::Mat h_img_resized = cv::Mat(new_Size, CV_8UC3);
+        cv::Mat_<cv::Vec3b> h_img_resized(new_Size);
+
+        d_img.upload(h_img);
+        d_result.upload(h_img_resized);
+
+        scalingCUDA(d_img, d_result, 32, 32, scaling);
+        */
         
 
-        /*d_result.download(h_result);
-        std::cout << h_result;*/
+        // ======== COLOR TRANSFORM ======== //
+        
+        cv::cuda::GpuMat d_result;
+        cv::cuda::GpuMat d_img;
+        cv::cuda::GpuMat d_tmp_img_c;
 
+        d_img.upload(h_img);
+        d_result.upload(h_img);
+        d_tmp_img_c.upload(h_img);
+
+        float angle = 40;
+
+        colorTransfCUDA(d_img, d_result, d_tmp_img_c, 32, 32, angle);
+        
+
+        //d_result.download(h_result);
+        //std::cout << h_result;
+
+        cv::imshow("Original Image", d_img);
         cv::imshow("Processed Image", d_result);
     }
     else
@@ -225,28 +262,67 @@ int main(int argc, char** argv)
         cout << "Iterations per second" << iter / diff.count() << endl;*/
 
         // ======== GAUSSIAN ======== //
-        // gaussianConvOpenmp(h_img, h_result, kernelSize, sigma);
+        
+        /*
+        const int kernelSize = 5;
+        int sigma = 11;
+        gaussianConvOpenmp(h_img, h_result, kernelSize, sigma);
+        */
          
         // ======== LAPLACIAN ======== //
-        // laplacianConvOpenmp(h_img, h_result);
+        
+        /*
+        laplacianConvOpenmp(h_img, h_result);
+        */
         
         // ======== COLOR TRANSFORM ======== //
+        /*
+        float angle = 40;
         colorTransfOpenmp(h_img, h_result, angle);
-        
+        */
+
         // ======== IMAGE COMBINATION ======== //
-        // imageCombOpenmp(h_img, h_result, h_img2, imageComb, offSet, scaleFactor);
+
+        /*
+        cv::Mat_<cv::Vec3b> h_img2 = cv::imread(argv[2]);
+        
+        int imageComb = 0; // 0, 1, 2, 3
+        float offSet = 0.5;
+        float scaleFactor = 0.5;
+        
+        imageCombOpenmp(h_img, h_result, h_img2, imageComb, offSet, scaleFactor);
+        */
 
         // ======== GAUSSIAN SEPARABLE ======== //
-        // gaussianSepOpenmp(h_img, h_result, tmp_img, kernelSize, sigma);
+        
+        /*
+        cv::Mat_<cv::Vec3b> tmp_img;
+
+        const int kernelSize = 5;
+        int sigma = 11;
+
+        gaussianSepOpenmp(h_img, h_result, tmp_img, kernelSize, sigma);
+        */
 
         // ======== DENOISING ======== //
-        // denoisingOpenmp(h_img, h_result, kernelSize, percent);
+        
+        /*
+        const int kernelSize = 5;
+        int percent = 50;
+
+        denoisingOpenmp(h_img, h_result, kernelSize, percent);
+        */
 
         // ======== SCALING ======== //
-        // scalingOpenmp(h_img, h_result, scaling);
+        
+        /*
+        float scaling = 2; // don't go higher than 4
 
+        scalingOpenmp(h_img, h_result, scaling);
+        */
+
+        cv::imshow("Original Image", h_img);
         cv::imshow("Processed Image", h_result);
-        //std::cout << h_result;
     }
 
     cv::waitKey();
