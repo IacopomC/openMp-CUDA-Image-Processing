@@ -145,7 +145,7 @@ __device__ float3 lab2bgr(float3 src) {
 
 
 
-__global__ void hueShift(const cv::cuda::PtrStep<uchar3> src, cv::cuda::PtrStep<uchar3> dst, cv::cuda::PtrStep<uchar3> d_tmp_img, int rows, int cols, float angle)
+__global__ void hueShift(const cv::cuda::PtrStep<uchar3> src, cv::cuda::PtrStep<uchar3> dst, int rows, int cols, float angle)
 {
     
     const int dst_x = blockDim.x * blockIdx.x + threadIdx.x;
@@ -429,13 +429,13 @@ void scalingCUDA(cv::cuda::GpuMat& src, cv::cuda::GpuMat& dst, int dimX, int dim
     scaling << <grid, block >> > (src, dst, dst.rows, dst.cols, src.rows, src.cols, scaleFactor);
 }
 
-void colorTransfCUDA(cv::cuda::GpuMat& src, cv::cuda::GpuMat& dst, cv::cuda::GpuMat& tmp_img, int dimX, int dimY, float angle)
+void colorTransfCUDA(cv::cuda::GpuMat& src, cv::cuda::GpuMat& dst, int dimX, int dimY, float angle)
 {
 
     const dim3 block(dimX, dimY);
     const dim3 grid(divUp(dst.cols, block.x), divUp(dst.rows, block.y));
 
-    hueShift << <grid, block >> > (src, dst, tmp_img, dst.rows, dst.cols, angle);
+    hueShift << <grid, block >> > (src, dst, dst.rows, dst.cols, angle);
 
 }
 

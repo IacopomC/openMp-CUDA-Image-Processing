@@ -8,7 +8,7 @@ using namespace std;
 
 void scalingCUDA(cv::cuda::GpuMat& src, cv::cuda::GpuMat& dst, int dimX, int dimY, float scaleFactor);
 
-void colorTransfCUDA(cv::cuda::GpuMat& src, cv::cuda::GpuMat& dst, cv::cuda::GpuMat& tmp_img, int dimX, int dimY, float angle);
+void colorTransfCUDA(cv::cuda::GpuMat& src, cv::cuda::GpuMat& dst, int dimX, int dimY, float angle);
 
 void denoisingCUDA(cv::cuda::GpuMat& src, cv::cuda::GpuMat& dst, int dimX, int dimY, int kernelSize, int percent);
 
@@ -81,6 +81,8 @@ cv::Mat_<float> generateGaussianKernel1D(int kernelSize, int sigma)
 
 int main(int argc, char** argv)
 {
+    // ========================== UNCOMMENT THE SECTION ACCORDING TO WHICH FILTER YOU WANT TO TRY ============================= //
+
     bool cuda = true; // true only if using CUDA
 
     cv::namedWindow("Original Image", cv::WINDOW_OPENGL | cv::WINDOW_AUTOSIZE);
@@ -197,6 +199,10 @@ int main(int argc, char** argv)
 
         int percent = 50;
         const int kernelSize = 5;
+
+        int border = (int)(kernelSize - 1) / 2;
+
+        cv::copyMakeBorder(h_img, h_img, border, border, border, border, cv::BORDER_REPLICATE);
         
         denoisingCUDA(d_img, d_result, 32, 32, kernelSize, percent);        
         */
@@ -207,11 +213,10 @@ int main(int argc, char** argv)
         cv::cuda::GpuMat d_result;
         cv::cuda::GpuMat d_img;
 
-        float scaling = 2; // don't go higher than 4
+        float scaling = 0.5; // don't go higher than 4
 
         cv::Size orig_Size = h_img.size();
         cv::Size new_Size(orig_Size.width* scaling, orig_Size.height* scaling);
-        //cv::Mat h_img_resized = cv::Mat(new_Size, CV_8UC3);
         cv::Mat_<cv::Vec3b> h_img_resized(new_Size);
 
         d_img.upload(h_img);
@@ -222,19 +227,17 @@ int main(int argc, char** argv)
         
 
         // ======== COLOR TRANSFORM ======== //
-        
+        /*
         cv::cuda::GpuMat d_result;
         cv::cuda::GpuMat d_img;
-        cv::cuda::GpuMat d_tmp_img_c;
 
         d_img.upload(h_img);
         d_result.upload(h_img);
-        d_tmp_img_c.upload(h_img);
 
         float angle = 40;
 
-        colorTransfCUDA(d_img, d_result, d_tmp_img_c, 32, 32, angle);
-        
+        colorTransfCUDA(d_img, d_result, 32, 32, angle);
+        */
 
         //d_result.download(h_result);
         //std::cout << h_result;
@@ -266,12 +269,22 @@ int main(int argc, char** argv)
         /*
         const int kernelSize = 5;
         int sigma = 11;
+
+        int border = (int)(kernelSize - 1) / 2;
+
+        cv::copyMakeBorder(h_img, h_img, border, border, border, border, cv::BORDER_REPLICATE);
+
         gaussianConvOpenmp(h_img, h_result, kernelSize, sigma);
         */
          
         // ======== LAPLACIAN ======== //
         
         /*
+        
+        int border = (int)(3 - 1) / 2;
+
+        cv::copyMakeBorder(h_img, h_img, border, border, border, border, cv::BORDER_REPLICATE);
+        
         laplacianConvOpenmp(h_img, h_result);
         */
         
@@ -301,6 +314,10 @@ int main(int argc, char** argv)
         const int kernelSize = 5;
         int sigma = 11;
 
+        int border = (int)(kernelSize - 1) / 2;
+
+        cv::copyMakeBorder(h_img, h_img, border, border, border, border, cv::BORDER_REPLICATE);
+
         gaussianSepOpenmp(h_img, h_result, tmp_img, kernelSize, sigma);
         */
 
@@ -309,6 +326,10 @@ int main(int argc, char** argv)
         /*
         const int kernelSize = 5;
         int percent = 50;
+
+        int border = (int)(kernelSize - 1) / 2;
+
+        cv::copyMakeBorder(h_img, h_img, border, border, border, border, cv::BORDER_REPLICATE);
 
         denoisingOpenmp(h_img, h_result, kernelSize, percent);
         */
