@@ -90,7 +90,7 @@ __device__ float3 xyz2lab(float3 src, float angle) {
     lab.x = (116. * v[1]) - 16.;
     lab.y = 500. * (v[0] - v[1]);
     lab.z = 200. * (v[1] - v[2]);
-    
+
     float C = sqrt(pow(lab.y, 2) + pow(lab.z, 2));
     float h = atan2(lab.z, lab.y);
     h += (angle * PI) / 180.0;
@@ -153,9 +153,14 @@ __global__ void hueShift(const cv::cuda::PtrStep<uchar3> src, cv::cuda::PtrStep<
 
     if (dst_x < cols && dst_y < rows)
     {
-        dst(dst_y, dst_x).x = (unsigned char)lab2bgr(bgr2lab(src(dst_y, dst_x), angle)).x;
-        dst(dst_y, dst_x).y = (unsigned char)lab2bgr(bgr2lab(src(dst_y, dst_x), angle)).y;
-        dst(dst_y, dst_x).z = (unsigned char)lab2bgr(bgr2lab(src(dst_y, dst_x), angle)).z;
+        float3 bgr;
+        bgr.x = lab2bgr(bgr2lab(src(dst_y, dst_x), angle)).x;
+        bgr.y = lab2bgr(bgr2lab(src(dst_y, dst_x), angle)).y;
+        bgr.z = lab2bgr(bgr2lab(src(dst_y, dst_x), angle)).z;
+
+        dst(dst_y, dst_x).x = (unsigned char)(bgr.x < 0 ? 0 : (bgr.x > 255 ? 255 : bgr.x));
+        dst(dst_y, dst_x).y = (unsigned char)(bgr.y < 0 ? 0 : (bgr.y > 255 ? 255 : bgr.y));
+        dst(dst_y, dst_x).z = (unsigned char)(bgr.z < 0 ? 0 : (bgr.z > 255 ? 255 : bgr.z));
         
     }
 
