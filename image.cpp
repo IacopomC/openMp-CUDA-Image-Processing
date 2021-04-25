@@ -83,7 +83,7 @@ int main(int argc, char** argv)
 {
     // ========================== UNCOMMENT THE SECTION ACCORDING TO WHICH FILTER YOU WANT TO TRY ============================= //
 
-    bool cuda = true; // true only if using CUDA
+    bool cuda = false; // true only if using CUDA
 
     cv::namedWindow("Original Image", cv::WINDOW_OPENGL | cv::WINDOW_AUTOSIZE);
     cv::namedWindow("Processed Image", cv::WINDOW_OPENGL | cv::WINDOW_AUTOSIZE);
@@ -93,25 +93,6 @@ int main(int argc, char** argv)
 
     if (cuda)
     {
-        /*for (int dim = 1; dim < 64; dim++)
-        {
-            auto begin = chrono::high_resolution_clock::now();
-            const int iter = 10000;
-
-
-            for (int i = 0; i < iter; i++)
-            {
-                gaussianCUDA(d_img, d_result, dim, dim);
-            }
-            auto end = std::chrono::high_resolution_clock::now();
-            std::chrono::duration<double> diff = end - begin;
-
-            cv::imshow("Processed Image", d_result);
-
-            cout << dim << ":" << diff.count() << endl;
-            cout << dim << ":" << diff.count() / iter << endl;
-            cout << dim << ":" << iter / diff.count() << endl;
-        }*/
 
         // ======== GAUSSIAN SEPARABLE======== //
         /*
@@ -122,8 +103,8 @@ int main(int argc, char** argv)
         cv::cuda::GpuMat d_kernel_1D;
         cv::Mat_<float> h_kernel_1D;
 
-        const int kernelSizeGaussS = 5;
-        int sigmaGaussS = 11;
+        const int kernelSizeGaussS = 9;
+        int sigmaGaussS = 41;
 
         d_img.upload(h_img);
         d_result.upload(h_img);
@@ -136,7 +117,7 @@ int main(int argc, char** argv)
         h_kernel_1D = generateGaussianKernel1D(kernelSizeGaussS, sigmaGaussS);
         d_kernel_1D.upload(h_kernel_1D);
 
-        gaussianSepCUDA(d_img, d_result, d_tmp_img, 32, 32, d_kernel_1D, kernelSizeGaussS, sigmaGaussS);
+        gaussianSepCUDA(d_img, d_result, d_tmp_img, 2, 2, d_kernel_1D, kernelSizeGaussS, sigmaGaussS);
         */
         
         // ======== GAUSSIAN CONVOLUTION ======== //
@@ -149,7 +130,7 @@ int main(int argc, char** argv)
         d_img.upload(h_img);
         d_result.upload(h_img);
 
-        const int kernelSizeGaussC = 5;
+        const int kernelSizeGaussC = 41;
         int sigmaGaussC = 11;
 
         int border = (int)(kernelSizeGaussC - 1) / 2;
@@ -158,7 +139,9 @@ int main(int argc, char** argv)
 
         h_kernel = generateGaussianKernel(kernelSizeGaussC, sigmaGaussC);
         d_kernel.upload(h_kernel);
-        gaussianConvCUDA(d_img, d_result, 32, 32, d_kernel, kernelSizeGaussC, sigmaGaussC);
+        
+        // ============= BEST DIM = 2. TESTED WITH CODE BELOW ============= //
+        gaussianConvCUDA(d_img, d_result, 2, 2, d_kernel, kernelSizeGaussC, sigmaGaussC);
         */
 
         // ======== IMAGE COMBINATION ======== //
@@ -172,11 +155,15 @@ int main(int argc, char** argv)
         d_result.upload(h_img);
         d_img2.upload(h_img2);
 
-        int imageComb = 0; // 0, 1, 2, 3
+        int imageComb = 0; // Sum:0, Sub:1, Mul:2, Div:3
         float offSet = 0.5;
         float scaleFactor = 0.5;
 
-        imageCombCUDA(d_img, d_result, d_img2, 32, 32, imageComb, offSet, scaleFactor);
+        // ============= SUM BEST DIM = 2. TESTED WITH CODE BELOW ============= //
+        // ============= SUB BEST DIM = 2. TESTED WITH CODE BELOW ============= //
+        // ============= MUL BEST DIM = 4. TESTED WITH CODE BELOW ============= //
+        // ============= DIV BEST DIM = 2. TESTED WITH CODE BELOW ============= //
+        imageCombCUDA(d_img, d_result, d_img2, 2, 2, imageComb, offSet, scaleFactor);
         */
          
         // ======== LAPLACIAN ======== //
@@ -186,7 +173,8 @@ int main(int argc, char** argv)
         d_img.upload(h_img);
         d_result.upload(h_img);
 
-        laplacianCUDA(d_img, d_result, 32, 32);
+        // ============= BEST DIM = 4. TESTED WITH CODE BELOW ============= //
+        laplacianCUDA(d_img, d_result, 4, 4);
         */
 
         // ======== DENOISING ======== //
@@ -204,7 +192,8 @@ int main(int argc, char** argv)
 
         cv::copyMakeBorder(h_img, h_img, border, border, border, border, cv::BORDER_REPLICATE);
         
-        denoisingCUDA(d_img, d_result, 32, 32, kernelSize, percent);        
+        // ============= BEST DIM = 4. TESTED WITH CODE BELOW ============= //
+        denoisingCUDA(d_img, d_result, 6, 6, kernelSize, percent);        
         */
 
         // ======== SCALING ======== //
@@ -222,7 +211,8 @@ int main(int argc, char** argv)
         d_img.upload(h_img);
         d_result.upload(h_img_resized);
 
-        scalingCUDA(d_img, d_result, 32, 32, scaling);
+        // ============= BEST DIM = 6. TESTED WITH CODE BELOW ============= //
+        scalingCUDA(d_img, d_result, 6, 6, scaling);
         */
         
 
@@ -236,34 +226,37 @@ int main(int argc, char** argv)
 
         float angle = 40;
 
-        colorTransfCUDA(d_img, d_result, 32, 32, angle);
+        // ============= BEST DIM = 2. TESTED WITH CODE BELOW ============= //
+        colorTransfCUDA(d_img, d_result, 2, 2, angle);
         */
 
-        //d_result.download(h_result);
-        //std::cout << h_result;
+        // ======== UNCOMMENT FOLLOWING SECTION TO TEST FILTER SPEED ======== //
+        /*
+        for (int dim = 1; dim < 12; dim++)
+        {
+            auto begin = chrono::high_resolution_clock::now();
+            const int iter = 100;
 
-        cv::imshow("Original Image", d_img);
-        cv::imshow("Processed Image", d_result);
+
+            for (int i = 0; i < iter; i++)
+            {
+                colorTransfCUDA(d_img, d_result, dim, dim, angle);
+            }
+            auto end = std::chrono::high_resolution_clock::now();
+            std::chrono::duration<double> diff = end - begin;
+
+            cout << "Total time dim " << dim << ":" << diff.count() << endl;
+            cout << "Time per iteration dim " << dim << ":" << diff.count() / iter << endl;
+            cout << "Iterations per second dim " << dim << ":" << iter / diff.count() << endl;
+        }
+        */
+
+        // ======== UNCOMMENT TO DISPLAY IMAGES ======== //
+        //cv::imshow("Original Image", d_img);
+        //cv::imshow("Processed Image", d_result);
     }
     else
     {
-        /*auto begin = chrono::high_resolution_clock::now();
-        const int iter = 10000;
-
-
-        for (int i = 0; i < iter; i++)
-        {
-            gaussianConvOpenmp(h_img, h_result, kernelSize, sigma);
-        }
-        auto end = std::chrono::high_resolution_clock::now();
-        std::chrono::duration<double> diff = end - begin;
-
-        cv::imshow("Processed Image", h_result);
-
-        cout << "Total time" << diff.count() << endl;
-        cout << "Time per iteration" << diff.count() / iter << endl;
-        cout << "Iterations per second" << iter / diff.count() << endl;*/
-
         // ======== GAUSSIAN ======== //
         
         /*
@@ -278,9 +271,7 @@ int main(int argc, char** argv)
         */
          
         // ======== LAPLACIAN ======== //
-        
         /*
-        
         int border = (int)(3 - 1) / 2;
 
         cv::copyMakeBorder(h_img, h_img, border, border, border, border, cv::BORDER_REPLICATE);
@@ -299,7 +290,7 @@ int main(int argc, char** argv)
         /*
         cv::Mat_<cv::Vec3b> h_img2 = cv::imread(argv[2]);
         
-        int imageComb = 0; // 0, 1, 2, 3
+        int imageComb = 3; // Sum:0, Sub:1, Mul:2, Div:3
         float offSet = 0.5;
         float scaleFactor = 0.5;
         
@@ -340,6 +331,23 @@ int main(int argc, char** argv)
         float scaling = 2; // don't go higher than 4
 
         scalingOpenmp(h_img, h_result, scaling);
+        */
+
+        // ======== UNCOMMENT FOLLOWING SECTION TO TEST FILTER SPEED ======== //
+        /*
+        auto begin = chrono::high_resolution_clock::now();
+        const int iter = 10;
+
+        for (int i = 0; i < iter; i++)
+        {
+            imageCombOpenmp(h_img, h_result, h_img2, imageComb, offSet, scaleFactor);
+        }
+        auto end = std::chrono::high_resolution_clock::now();
+        std::chrono::duration<double> diff = end - begin;
+
+        cout << "Total time " << diff.count() << endl;
+        cout << "Time per iteration " << diff.count() / iter << endl;
+        cout << "Iterations per second " << iter / diff.count() << endl;
         */
 
         cv::imshow("Original Image", h_img);
