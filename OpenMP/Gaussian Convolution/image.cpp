@@ -7,30 +7,6 @@ using namespace std;
 
 void gaussianConvOpenmp(cv::Mat_<cv::Vec3b>& src, cv::Mat_<cv::Vec3b>& dst, int kernelSize, int sigma);
 
-cv::Mat_<float> generateGaussianKernel(int kernelSize, int sigma)
-{
-    float PI = 3.14159265358979323846;
-    float constant = 1.0 / (2.0 * PI * pow(sigma, 2));
-    int radius = (kernelSize - 1.0) / 2.0;
-    cv::Mat_<float> h_kernel(kernelSize, kernelSize);
-
-    float sum = 0.0;
-    for (int i = -radius; i < radius + 1; i++) {
-        for (int j = -radius; j < radius + 1; j++)
-        {
-            h_kernel[i + radius][j + radius] = constant * (exp(-(pow(i, 2) + pow(j, 2)) / (2 * pow(sigma, 2))));
-            sum += h_kernel(i + radius, j + radius);
-        }
-
-    }
-
-    for (int i = 0; i < kernelSize; ++i)
-        for (int j = 0; j < kernelSize; ++j)
-            h_kernel(i, j) /= sum;
-
-    return h_kernel;
-}
-
 int main(int argc, char** argv)
 {
 	cv::namedWindow("Original Image", cv::WINDOW_OPENGL | cv::WINDOW_AUTOSIZE);
