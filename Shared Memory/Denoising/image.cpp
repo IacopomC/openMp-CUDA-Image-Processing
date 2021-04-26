@@ -38,23 +38,20 @@ int main(int argc, char** argv)
     d_result = d_result(cv::Range(border + 1, d_result.rows - border), cv::Range(border + 1, d_result.cols - border)).clone();
 
     /*
-    for (int dim = 1; dim < 12; dim++)
+    auto begin = chrono::high_resolution_clock::now();
+    const int iter = 100;
+
+
+    for (int i = 0; i < iter; i++)
     {
-        auto begin = chrono::high_resolution_clock::now();
-        const int iter = 100;
-
-
-        for (int i = 0; i < iter; i++)
-        {
-            colorTransfCUDA(d_img, d_result, dim, dim, angle);
-        }
-        auto end = std::chrono::high_resolution_clock::now();
-        std::chrono::duration<double> diff = end - begin;
-
-        cout << "Total time dim " << dim << ":" << diff.count() << endl;
-        cout << "Time per iteration dim " << dim << ":" << diff.count() / iter << endl;
-        cout << "Iterations per second dim " << dim << ":" << iter / diff.count() << endl;
+        denoisingCUDA(d_img, d_result, kernelSize, percent);
     }
+    auto end = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double> diff = end - begin;
+
+    cout << "Total time :" << diff.count() << endl;
+    cout << "Time per iteration :" << diff.count() / iter << endl;
+    cout << "Iterations per second :" << iter / diff.count() << endl;
     */
 
     cv::imshow("Original Image", h_img);
