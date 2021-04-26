@@ -38,15 +38,16 @@ int main(int argc, char** argv)
 
 	cv::Mat_<cv::Vec3b> h_img = cv::imread(argv[1]);
 	cv::Mat_<cv::Vec3b> h_result;
+    cv::Mat_<cv::Vec3b> input_img;
 
     const int kernelSize = atof(argv[2]);
     int sigma = atof(argv[3]);
 
     int border = (int)(kernelSize - 1) / 2;
 
-    cv::copyMakeBorder(h_img, h_img, border, border, border, border, cv::BORDER_REPLICATE);
+    cv::copyMakeBorder(h_img, input_img, border, border, border, border, cv::BORDER_REPLICATE);
 
-    gaussianConvOpenmp(h_img, h_result, kernelSize, sigma);
+    gaussianConvOpenmp(input_img, h_result, kernelSize, sigma);
 	
     /*
     auto begin = chrono::high_resolution_clock::now();
