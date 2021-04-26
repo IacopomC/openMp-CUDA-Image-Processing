@@ -45,7 +45,7 @@ int main(int argc, char** argv)
 
         for (int i = 0; i < iter; i++)
         {
-            imageCombCUDA(d_img, d_result, d_img2, dim, dim, imageComb, offSet, scaleFactor);
+            denoisingCUDA(d_img, d_result, dim, dim, kernelSize, percent);
         }
         auto end = std::chrono::high_resolution_clock::now();
         std::chrono::duration<double> diff = end - begin;
