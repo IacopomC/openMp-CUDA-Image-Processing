@@ -22,7 +22,7 @@ int main(int argc, char** argv)
 
     laplacianConvOpenmp(h_img, h_result);
 	
-    
+    /*
     auto begin = chrono::high_resolution_clock::now();
     const int iter = 100;
 
@@ -36,7 +36,7 @@ int main(int argc, char** argv)
     cout << "Total time " << diff.count() << endl;
     cout << "Time per iteration " << diff.count() / iter << endl;
     cout << "Iterations per second " << iter / diff.count() << endl;
-    
+    */
 
     cv::imshow("Original Image", h_img);
     cv::imshow("Processed Image", h_result);
